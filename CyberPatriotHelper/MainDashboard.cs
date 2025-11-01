@@ -140,6 +140,8 @@ namespace CyberPatriotHelper
             _listView.Items.Clear();
             _btnRefresh.Enabled = false;
             _btnRefresh.Text = "Checking...";
+            // Note: Application.DoEvents() is used here to update UI immediately
+            // This is acceptable for simple UI feedback in a Windows Forms app
             Application.DoEvents();
 
             int passCount = 0;

@@ -32,15 +32,24 @@ namespace CyberPatriotHelper.Checks
                         FileName = "powershell",
                         Arguments = "-Command \"Get-MpComputerStatus | Select-Object -Property RealTimeProtectionEnabled\"",
                         RedirectStandardOutput = true,
+                        RedirectStandardError = true,
                         UseShellExecute = false,
                         CreateNoWindow = true
                     }
                 };
                 process.Start();
                 string output = process.StandardOutput.ReadToEnd();
+                string error = process.StandardError.ReadToEnd();
                 process.WaitForExit();
 
                 Evidence = output;
+                
+                if (!string.IsNullOrEmpty(error))
+                {
+                    Status = CheckStatus.Unknown;
+                    Evidence += "\nError: " + error;
+                    return;
+                }
 
                 if (output.ToLower().Contains("true"))
                 {
@@ -69,6 +78,7 @@ namespace CyberPatriotHelper.Checks
                         FileName = "powershell",
                         Arguments = "-Command \"Set-MpPreference -DisableRealtimeMonitoring $false\"",
                         RedirectStandardOutput = true,
+                        RedirectStandardError = true,
                         UseShellExecute = false,
                         CreateNoWindow = true,
                         Verb = "runas"
@@ -79,8 +89,14 @@ namespace CyberPatriotHelper.Checks
                 
                 return process.ExitCode == 0;
             }
-            catch
+            catch (System.ComponentModel.Win32Exception)
             {
+                // User cancelled UAC prompt or insufficient permissions
+                return false;
+            }
+            catch (Exception)
+            {
+                // Other errors during fix attempt
                 return false;
             }
         }

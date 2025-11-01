@@ -31,15 +31,24 @@ namespace CyberPatriotHelper.Checks
                         FileName = "powershell",
                         Arguments = "-Command \"Get-WindowsOptionalFeature -Online -FeatureName SMB1Protocol | Select-Object -Property State\"",
                         RedirectStandardOutput = true,
+                        RedirectStandardError = true,
                         UseShellExecute = false,
                         CreateNoWindow = true
                     }
                 };
                 process.Start();
                 string output = process.StandardOutput.ReadToEnd();
+                string error = process.StandardError.ReadToEnd();
                 process.WaitForExit();
 
                 Evidence = output;
+                
+                if (!string.IsNullOrEmpty(error))
+                {
+                    Status = CheckStatus.Unknown;
+                    Evidence += "\nError: " + error;
+                    return;
+                }
 
                 if (output.ToLower().Contains("disabled"))
                 {
@@ -72,6 +81,7 @@ namespace CyberPatriotHelper.Checks
                         FileName = "powershell",
                         Arguments = "-Command \"Disable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol -NoRestart\"",
                         RedirectStandardOutput = true,
+                        RedirectStandardError = true,
                         UseShellExecute = false,
                         CreateNoWindow = true,
                         Verb = "runas"
@@ -82,8 +92,14 @@ namespace CyberPatriotHelper.Checks
                 
                 return process.ExitCode == 0;
             }
-            catch
+            catch (System.ComponentModel.Win32Exception)
             {
+                // User cancelled UAC prompt or insufficient permissions
+                return false;
+            }
+            catch (Exception)
+            {
+                // Other errors during fix attempt
                 return false;
             }
         }

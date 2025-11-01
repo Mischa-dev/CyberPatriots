@@ -80,8 +80,14 @@ namespace CyberPatriotHelper.Checks
                 
                 return process.ExitCode == 0;
             }
-            catch
+            catch (System.ComponentModel.Win32Exception)
             {
+                // User cancelled UAC prompt or insufficient permissions
+                return false;
+            }
+            catch (Exception)
+            {
+                // Other errors during fix attempt
                 return false;
             }
         }

@@ -231,6 +231,9 @@ namespace CyberPatriotHelper.UI
                 {
                     btnFix.Enabled = false;
                     btnFix.Text = "Fixing...";
+                    // Note: Application.DoEvents() is used here to update UI immediately
+                    // This is acceptable for simple UI feedback in a Windows Forms app
+                    // For production, consider using async/await pattern
                     Application.DoEvents();
 
                     bool success = _check.Fix();
@@ -262,6 +265,8 @@ namespace CyberPatriotHelper.UI
             {
                 btnVerify.Enabled = false;
                 btnVerify.Text = "Verifying...";
+                // Note: Application.DoEvents() is used here to update UI immediately
+                // This is acceptable for simple UI feedback in a Windows Forms app
                 Application.DoEvents();
 
                 bool verified = _check.Verify();
