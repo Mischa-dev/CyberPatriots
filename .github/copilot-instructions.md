@@ -209,8 +209,8 @@ When working with Windows security:
 
 When making significant changes:
 1. Update `README.md` if user-facing features change
-2. Update `DEVELOPER_README.md` for architectural changes
-3. Update `USER_GUIDE.md` for new security checks or UI changes
+2. Update `CyberPatriotHelper/DEVELOPER_README.md` for architectural changes
+3. Update `CyberPatriotHelper/USER_GUIDE.md` for new security checks or UI changes
 4. Keep `PROJECT_SUMMARY.md` current with major milestones
 
 ## Future Enhancements
@@ -227,9 +227,9 @@ When implementing these features, maintain the same pattern-based architecture.
 ## References
 
 - [CyberPatriot Competition Rules](https://www.uscyberpatriot.org/)
-- [Windows Security Baseline](https://docs.microsoft.com/en-us/windows/security/threat-protection/windows-security-baselines)
-- [.NET Documentation](https://docs.microsoft.com/en-us/dotnet/)
-- [Windows Forms Documentation](https://docs.microsoft.com/en-us/dotnet/desktop/winforms/)
+- [Windows Security Baseline](https://learn.microsoft.com/en-us/windows/security/threat-protection/windows-security-baselines)
+- [.NET Documentation](https://learn.microsoft.com/en-us/dotnet/)
+- [Windows Forms Documentation](https://learn.microsoft.com/en-us/dotnet/desktop/winforms/)
 
 ## Notes for AI Assistance
 
