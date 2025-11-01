@@ -471,6 +471,10 @@ namespace CyberPatriotHelper.UI
                 }
 
                 _cmbUsers.Items.Clear();
+                
+                // Add "All Users" as the first option
+                _cmbUsers.Items.Add("All Users");
+                
                 foreach (var user in realUsers)
                 {
                     _cmbUsers.Items.Add(user);
@@ -496,7 +500,15 @@ namespace CyberPatriotHelper.UI
             if (_cmbUsers.SelectedItem == null) return;
 
             string userName = _cmbUsers.SelectedItem.ToString()!;
-            LoadUserFolders(userName);
+            
+            if (userName == "All Users")
+            {
+                LoadAllUsersFolders();
+            }
+            else
+            {
+                LoadUserFolders(userName);
+            }
         }
 
         private void LoadUserFolders(string userName)
@@ -534,6 +546,107 @@ namespace CyberPatriotHelper.UI
 
             _lblUserExplorerStatus.Text = $"✓ Loaded {totalFolders} folders, {totalFiles} files from {userName}'s default locations";
             _lblUserExplorerStatus.ForeColor = Color.Green;
+        }
+
+        private void LoadAllUsersFolders()
+        {
+            _lvUserFiles.Items.Clear();
+            _lblUserExplorerStatus.Text = "Loading...";
+
+            string usersPath = @"C:\Users";
+            if (!Directory.Exists(usersPath))
+            {
+                _lblUserExplorerStatus.Text = "⚠️ C:\\Users directory not found";
+                _lblUserExplorerStatus.ForeColor = Color.Red;
+                return;
+            }
+
+            var directories = Directory.GetDirectories(usersPath);
+            var realUsers = directories
+                .Where(d => !Path.GetFileName(d).Equals("Public", StringComparison.OrdinalIgnoreCase) &&
+                            !Path.GetFileName(d).Equals("Default", StringComparison.OrdinalIgnoreCase) &&
+                            !Path.GetFileName(d).Equals("Default User", StringComparison.OrdinalIgnoreCase) &&
+                            !Path.GetFileName(d).StartsWith("Default.", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            string[] defaultFolders = {
+                "Desktop",
+                "Documents",
+                "Downloads",
+                "Pictures",
+                "Music",
+                "Videos"
+            };
+
+            int totalFiles = 0;
+            int totalFolders = 0;
+            int processedUsers = 0;
+            List<string> inaccessibleUsers = new List<string>();
+
+            foreach (var userDir in realUsers)
+            {
+                string userName = Path.GetFileName(userDir);
+                bool hasAccessToAnyFolder = false;
+
+                foreach (string folderName in defaultFolders)
+                {
+                    string folderPath = Path.Combine(userDir, folderName);
+                    string folderDisplayName = $"{userName}\\{folderName}";
+
+                    // Try to scan the folder and track if we have any access
+                    int filesBefore = totalFiles;
+                    int foldersBefore = totalFolders;
+                    ScanFolderOneLevel(folderPath, folderDisplayName, ref totalFiles, ref totalFolders);
+
+                    if (totalFiles > filesBefore || totalFolders > foldersBefore)
+                    {
+                        hasAccessToAnyFolder = true;
+                    }
+                }
+
+                // Check OneDrive\Documents if it exists
+                string oneDriveDocs = Path.Combine(userDir, "OneDrive", "Documents");
+                if (Directory.Exists(oneDriveDocs))
+                {
+                    string folderDisplayName = $"{userName}\\OneDrive\\Documents";
+                    int filesBefore = totalFiles;
+                    int foldersBefore = totalFolders;
+                    ScanFolderOneLevel(oneDriveDocs, folderDisplayName, ref totalFiles, ref totalFolders);
+
+                    if (totalFiles > filesBefore || totalFolders > foldersBefore)
+                    {
+                        hasAccessToAnyFolder = true;
+                    }
+                }
+
+                if (hasAccessToAnyFolder)
+                {
+                    processedUsers++;
+                }
+                else
+                {
+                    // Check if user folders exist but we can't access them
+                    bool hasFolders = defaultFolders.Any(f => Directory.Exists(Path.Combine(userDir, f)));
+                    if (hasFolders)
+                    {
+                        inaccessibleUsers.Add(userName);
+                    }
+                }
+            }
+
+            string statusText = $"✓ Loaded {totalFolders} folders, {totalFiles} files from {processedUsers} user profile(s)";
+            
+            if (inaccessibleUsers.Count > 0)
+            {
+                statusText += $" | ⚠️ {inaccessibleUsers.Count} user(s) with access issues: {string.Join(", ", inaccessibleUsers)}";
+                _lblUserExplorerStatus.ForeColor = Color.DarkOrange;
+            }
+            else
+            {
+                _lblUserExplorerStatus.ForeColor = Color.Green;
+            }
+
+            _lblUserExplorerStatus.Text = statusText;
         }
 
         private void ScanFolderOneLevel(string folderPath, string folderDisplayName, ref int totalFiles, ref int totalFolders)
