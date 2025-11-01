@@ -36,7 +36,7 @@ public abstract class SecurityCheck
     
     public abstract void Check();
     public abstract bool Fix();
-    public virtual bool Verify();
+    public virtual bool Verify();  // Returns true if status is Pass after calling Check()
 }
 ```
 
@@ -179,7 +179,7 @@ When working with Windows security:
        {
            // Fix the issue with UAC elevation
            // Return true if successful, false otherwise
-           // Check() is automatically called by Verify()
+           // Verify() will call Check() to confirm the fix
            return true;
        }
    }
