@@ -42,8 +42,9 @@ namespace CyberPatriotHelper.UI
         private Label _lblSearchStatus = null!;
 
         private CancellationTokenSource? _searchCancellation;
-        private List<FileSearchResult> _searchResults = new List<FileSearchResult>();
-        private List<FileSearchResult> _pendingUIUpdates = new List<FileSearchResult>();
+        private readonly List<FileSearchResult> _searchResults = new List<FileSearchResult>();
+        private readonly List<FileSearchResult> _pendingUIUpdates = new List<FileSearchResult>();
+        private readonly object _searchResultsLock = new object();
         private System.Windows.Forms.Timer _uiUpdateTimer = null!;
 
         public FileSystemToolsWindow()
@@ -65,26 +66,33 @@ namespace CyberPatriotHelper.UI
 
         private void ProcessPendingUIUpdates()
         {
-            lock (_pendingUIUpdates)
+            List<FileSearchResult> resultsToProcess;
+            int totalCount;
+
+            // Copy pending updates and get total count under lock
+            lock (_searchResultsLock)
             {
                 if (_pendingUIUpdates.Count == 0)
                     return;
 
-                // Process all pending updates
-                foreach (var result in _pendingUIUpdates)
-                {
-                    var item = new ListViewItem(result.Path);
-                    item.SubItems.Add(FormatFileSize(result.Size));
-                    item.SubItems.Add(result.Modified.ToString("yyyy-MM-dd HH:mm"));
-                    item.SubItems.Add(result.Attributes);
-                    item.SubItems.Add(result.IsReviewed ? "Yes" : "");
-                    item.Tag = result;
-                    _lvSearchResults.Items.Add(item);
-                }
-
-                _lblSearchStatus.Text = $"Searching... Found {_searchResults.Count} file(s) so far...";
+                resultsToProcess = new List<FileSearchResult>(_pendingUIUpdates);
+                totalCount = _searchResults.Count;
                 _pendingUIUpdates.Clear();
             }
+
+            // Process all pending updates (outside lock)
+            foreach (var result in resultsToProcess)
+            {
+                var item = new ListViewItem(result.Path);
+                item.SubItems.Add(FormatFileSize(result.Size));
+                item.SubItems.Add(result.Modified.ToString("yyyy-MM-dd HH:mm"));
+                item.SubItems.Add(result.Attributes);
+                item.SubItems.Add(result.IsReviewed ? "Yes" : "");
+                item.Tag = result;
+                _lvSearchResults.Items.Add(item);
+            }
+
+            _lblSearchStatus.Text = $"Searching... Found {totalCount} file(s) so far...";
         }
 
         private void CheckElevation()
@@ -740,9 +748,15 @@ namespace CyberPatriotHelper.UI
                 // Process any remaining pending updates
                 ProcessPendingUIUpdates();
 
+                int finalCount;
+                lock (_searchResultsLock)
+                {
+                    finalCount = _searchResults.Count;
+                }
+
                 if (!_searchCancellation.Token.IsCancellationRequested)
                 {
-                    _lblSearchStatus.Text = $"✓ Search complete. Found {_searchResults.Count} file(s).";
+                    _lblSearchStatus.Text = $"✓ Search complete. Found {finalCount} file(s).";
                     _lblSearchStatus.ForeColor = Color.Green;
                 }
             }
@@ -761,7 +775,14 @@ namespace CyberPatriotHelper.UI
                 _uiUpdateTimer.Stop(); // Stop the timer
                 _btnStartSearch.Enabled = true;
                 _btnCancelSearch.Enabled = false;
-                _btnExportResults.Enabled = _searchResults.Count > 0;
+
+                bool hasResults;
+                lock (_searchResultsLock)
+                {
+                    hasResults = _searchResults.Count > 0;
+                }
+                _btnExportResults.Enabled = hasResults;
+
                 _progressBar.Style = ProgressBarStyle.Continuous;
                 _progressBar.Value = 0;
             }
@@ -841,14 +862,13 @@ namespace CyberPatriotHelper.UI
                                 IsReviewed = false
                             };
 
-                            _searchResults.Add(result);
-                            foundCount++;
-
-                            // Add to pending updates for batched UI update
-                            lock (_pendingUIUpdates)
+                            // Add to both lists under lock
+                            lock (_searchResultsLock)
                             {
+                                _searchResults.Add(result);
                                 _pendingUIUpdates.Add(result);
                             }
+                            foundCount++;
                         }
                     }
                     catch
@@ -931,14 +951,26 @@ namespace CyberPatriotHelper.UI
                 }
             }
 
-            int reviewedCount = _searchResults.Count(r => r.IsReviewed);
-            _lblSearchStatus.Text = $"Marked {_lvSearchResults.SelectedItems.Count} item(s) as reviewed. Total reviewed: {reviewedCount}/{_searchResults.Count}";
+            int reviewedCount;
+            int totalCount;
+            lock (_searchResultsLock)
+            {
+                reviewedCount = _searchResults.Count(r => r.IsReviewed);
+                totalCount = _searchResults.Count;
+            }
+            _lblSearchStatus.Text = $"Marked {_lvSearchResults.SelectedItems.Count} item(s) as reviewed. Total reviewed: {reviewedCount}/{totalCount}";
             _lblSearchStatus.ForeColor = Color.Green;
         }
 
         private void BtnExportResults_Click(object? sender, EventArgs e)
         {
-            if (_searchResults.Count == 0)
+            bool hasResults;
+            lock (_searchResultsLock)
+            {
+                hasResults = _searchResults.Count > 0;
+            }
+
+            if (!hasResults)
             {
                 MessageBox.Show("No results to export.", "No Results", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
@@ -955,10 +987,17 @@ namespace CyberPatriotHelper.UI
             {
                 try
                 {
+                    // Create a snapshot of results under lock
+                    List<FileSearchResult> resultsSnapshot;
+                    lock (_searchResultsLock)
+                    {
+                        resultsSnapshot = new List<FileSearchResult>(_searchResults);
+                    }
+
                     if (saveDialog.FileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
                     {
                         // Export as JSON (basic implementation)
-                        var json = JsonSerializer.Serialize(_searchResults, new JsonSerializerOptions { WriteIndented = true });
+                        var json = JsonSerializer.Serialize(resultsSnapshot, new JsonSerializerOptions { WriteIndented = true });
                         File.WriteAllText(saveDialog.FileName, json);
                     }
                     else
@@ -966,7 +1005,7 @@ namespace CyberPatriotHelper.UI
                         // Export as CSV
                         using StreamWriter writer = new StreamWriter(saveDialog.FileName);
                         writer.WriteLine("Path,Size,SizeFormatted,Modified,Attributes,Reviewed");
-                        foreach (var result in _searchResults)
+                        foreach (var result in resultsSnapshot)
                         {
                             writer.WriteLine($"\"{result.Path}\",{result.Size},\"{FormatFileSize(result.Size)}\",\"{result.Modified:yyyy-MM-dd HH:mm:ss}\",\"{result.Attributes}\",{result.IsReviewed}");
                         }
