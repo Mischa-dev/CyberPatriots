@@ -186,7 +186,16 @@ When working with Windows security:
    ```
 4. Add to dashboard in `MainDashboard.cs`:
    ```csharp
-   securityChecks.Add(new MyNewCheck());
+   private void InitializeChecks()
+   {
+       _checks = new List<SecurityCheck>
+       {
+           new FirewallCheck(),
+           new GuestAccountCheck(),
+           new MyNewCheck(),  // Add your new check here
+           // ... other checks
+       };
+   }
    ```
 
 ### Modifying the UI
