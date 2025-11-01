@@ -197,7 +197,7 @@ namespace CyberPatriotHelper.UI
         {
             string statusText = $"Status: {_check.Status}";
             lblStatus.Text = statusText;
-            
+
             switch (_check.Status)
             {
                 case CheckStatus.Pass:

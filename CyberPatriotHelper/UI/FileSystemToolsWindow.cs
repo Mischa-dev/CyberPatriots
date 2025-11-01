@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -18,14 +19,15 @@ namespace CyberPatriotHelper.UI
         private TabControl _tabControl = null!;
         private TabPage _tabUserExplorer = null!;
         private TabPage _tabPatternSearch = null!;
-        
+        private Panel _pnlElevationWarning = null!;
+
         // User Explorer controls
         private ComboBox _cmbUsers = null!;
         private ListView _lvUserFiles = null!;
         private Button _btnOpenExplorer = null!;
         private Button _btnOpenPowerShell = null!;
         private Label _lblUserExplorerStatus = null!;
-        
+
         // Pattern Search controls
         private TextBox _txtExtensions = null!;
         private TextBox _txtMinSize = null!;
@@ -37,14 +39,35 @@ namespace CyberPatriotHelper.UI
         private ListView _lvSearchResults = null!;
         private ProgressBar _progressBar = null!;
         private Label _lblSearchStatus = null!;
-        
+
         private CancellationTokenSource? _searchCancellation;
         private List<FileSearchResult> _searchResults = new List<FileSearchResult>();
 
         public FileSystemToolsWindow()
         {
             InitializeComponents();
+            CheckElevation();
             LoadUsers();
+        }
+
+        private void CheckElevation()
+        {
+            bool isElevated = false;
+            try
+            {
+                using var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
+                var principal = new System.Security.Principal.WindowsPrincipal(identity);
+                isElevated = principal.IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
+            }
+            catch
+            {
+                // If we can't check, assume not elevated
+            }
+
+            if (!isElevated)
+            {
+                _pnlElevationWarning.Visible = true;
+            }
         }
 
         private void InitializeComponents()
@@ -54,10 +77,31 @@ namespace CyberPatriotHelper.UI
             this.StartPosition = FormStartPosition.CenterScreen;
             this.MinimumSize = new Size(900, 600);
 
-            _tabControl = new TabControl
+            // Elevation warning panel (initially hidden)
+            _pnlElevationWarning = new Panel
             {
                 Location = new Point(10, 10),
-                Size = new Size(1060, 640),
+                Size = new Size(1060, 40),
+                BackColor = Color.LightYellow,
+                BorderStyle = BorderStyle.FixedSingle,
+                Visible = false
+            };
+
+            Label lblWarning = new Label
+            {
+                Location = new Point(10, 10),
+                Size = new Size(1040, 20),
+                Text = "⚠️ Not running as Administrator. Some files/folders may be inaccessible. Run as Admin for full access.",
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                ForeColor = Color.DarkOrange
+            };
+            _pnlElevationWarning.Controls.Add(lblWarning);
+            this.Controls.Add(_pnlElevationWarning);
+
+            _tabControl = new TabControl
+            {
+                Location = new Point(10, 55),
+                Size = new Size(1060, 595),
                 Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
             };
             this.Controls.Add(_tabControl);
@@ -655,7 +699,7 @@ namespace CyberPatriotHelper.UI
             try
             {
                 await Task.Run(() => PerformSearch(extensions, minSizeMB, _searchCancellation.Token));
-                
+
                 if (!_searchCancellation.Token.IsCancellationRequested)
                 {
                     _lblSearchStatus.Text = $"✓ Search complete. Found {_searchResults.Count} file(s).";

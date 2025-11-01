@@ -43,7 +43,7 @@ namespace CyberPatriotHelper.Checks
                 process.WaitForExit();
 
                 Evidence = output;
-                
+
                 if (!string.IsNullOrEmpty(error))
                 {
                     Status = CheckStatus.Unknown;
@@ -86,7 +86,7 @@ namespace CyberPatriotHelper.Checks
                 };
                 process.Start();
                 process.WaitForExit();
-                
+
                 return process.ExitCode == 0;
             }
             catch (System.ComponentModel.Win32Exception)

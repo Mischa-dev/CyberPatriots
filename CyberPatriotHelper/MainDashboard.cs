@@ -152,7 +152,7 @@ namespace CyberPatriotHelper
                 try
                 {
                     check.Check();
-                    
+
                     var item = new ListViewItem(check.Name);
                     item.SubItems.Add(check.Status.ToString());
                     item.SubItems.Add(check.Description);
@@ -205,12 +205,12 @@ namespace CyberPatriotHelper
             {
                 var selectedItem = _listView.SelectedItems[0];
                 var check = selectedItem.Tag as SecurityCheck;
-                
+
                 if (check != null)
                 {
                     var dialog = new CheckDetailDialog(check);
                     dialog.ShowDialog(this);
-                    
+
                     // Refresh the specific item after dialog closes
                     RefreshCheck(check, selectedItem);
                 }
@@ -221,7 +221,7 @@ namespace CyberPatriotHelper
         {
             check.Check();
             item.SubItems[1].Text = check.Status.ToString();
-            
+
             switch (check.Status)
             {
                 case CheckStatus.Pass:
@@ -247,7 +247,7 @@ namespace CyberPatriotHelper
         {
             int passCount = _checks.Count(c => c.Status == CheckStatus.Pass);
             int failCount = _checks.Count(c => c.Status == CheckStatus.Fail || c.Status == CheckStatus.Warning);
-            
+
             _lblSummary.Text = $"Security Status: {passCount} Passing, {failCount} Issues Found";
             _lblSummary.ForeColor = failCount == 0 ? Color.Green : Color.Red;
         }
