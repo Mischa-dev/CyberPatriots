@@ -5,6 +5,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Security.Principal;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -42,12 +43,48 @@ namespace CyberPatriotHelper.UI
 
         private CancellationTokenSource? _searchCancellation;
         private List<FileSearchResult> _searchResults = new List<FileSearchResult>();
+        private List<FileSearchResult> _pendingUIUpdates = new List<FileSearchResult>();
+        private System.Windows.Forms.Timer _uiUpdateTimer = null!;
 
         public FileSystemToolsWindow()
         {
             InitializeComponents();
             CheckElevation();
             LoadUsers();
+            InitializeUIUpdateTimer();
+        }
+
+        private void InitializeUIUpdateTimer()
+        {
+            _uiUpdateTimer = new System.Windows.Forms.Timer
+            {
+                Interval = 200 // Update UI every 200ms
+            };
+            _uiUpdateTimer.Tick += (s, e) => ProcessPendingUIUpdates();
+        }
+
+        private void ProcessPendingUIUpdates()
+        {
+            lock (_pendingUIUpdates)
+            {
+                if (_pendingUIUpdates.Count == 0)
+                    return;
+
+                // Process all pending updates
+                foreach (var result in _pendingUIUpdates)
+                {
+                    var item = new ListViewItem(result.Path);
+                    item.SubItems.Add(FormatFileSize(result.Size));
+                    item.SubItems.Add(result.Modified.ToString("yyyy-MM-dd HH:mm"));
+                    item.SubItems.Add(result.Attributes);
+                    item.SubItems.Add(result.IsReviewed ? "Yes" : "");
+                    item.Tag = result;
+                    _lvSearchResults.Items.Add(item);
+                }
+
+                _lblSearchStatus.Text = $"Searching... Found {_searchResults.Count} file(s) so far...";
+                _pendingUIUpdates.Clear();
+            }
         }
 
         private void CheckElevation()
@@ -458,7 +495,6 @@ namespace CyberPatriotHelper.UI
         {
             _lvUserFiles.Items.Clear();
             _lblUserExplorerStatus.Text = "Loading...";
-            Application.DoEvents();
 
             string userPath = Path.Combine(@"C:\Users", userName);
             string[] defaultFolders = {
@@ -695,10 +731,14 @@ namespace CyberPatriotHelper.UI
             _lblSearchStatus.ForeColor = Color.Blue;
 
             _searchCancellation = new CancellationTokenSource();
+            _uiUpdateTimer.Start(); // Start the batched UI update timer
 
             try
             {
                 await Task.Run(() => PerformSearch(extensions, minSizeMB, _searchCancellation.Token));
+
+                // Process any remaining pending updates
+                ProcessPendingUIUpdates();
 
                 if (!_searchCancellation.Token.IsCancellationRequested)
                 {
@@ -718,6 +758,7 @@ namespace CyberPatriotHelper.UI
             }
             finally
             {
+                _uiUpdateTimer.Stop(); // Stop the timer
                 _btnStartSearch.Enabled = true;
                 _btnCancelSearch.Enabled = false;
                 _btnExportResults.Enabled = _searchResults.Count > 0;
@@ -803,22 +844,11 @@ namespace CyberPatriotHelper.UI
                             _searchResults.Add(result);
                             foundCount++;
 
-                            // Capture count for use in delegate
-                            int currentCount = foundCount;
-
-                            // Update UI on main thread
-                            this.Invoke((MethodInvoker)delegate
+                            // Add to pending updates for batched UI update
+                            lock (_pendingUIUpdates)
                             {
-                                var item = new ListViewItem(result.Path);
-                                item.SubItems.Add(FormatFileSize(result.Size));
-                                item.SubItems.Add(result.Modified.ToString("yyyy-MM-dd HH:mm"));
-                                item.SubItems.Add(result.Attributes);
-                                item.SubItems.Add(result.IsReviewed ? "Yes" : "");
-                                item.Tag = result;
-                                _lvSearchResults.Items.Add(item);
-
-                                _lblSearchStatus.Text = $"Searching... Found {currentCount} file(s) so far...";
-                            });
+                                _pendingUIUpdates.Add(result);
+                            }
                         }
                     }
                     catch
@@ -928,7 +958,7 @@ namespace CyberPatriotHelper.UI
                     if (saveDialog.FileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
                     {
                         // Export as JSON (basic implementation)
-                        var json = System.Text.Json.JsonSerializer.Serialize(_searchResults, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                        var json = JsonSerializer.Serialize(_searchResults, new JsonSerializerOptions { WriteIndented = true });
                         File.WriteAllText(saveDialog.FileName, json);
                     }
                     else
