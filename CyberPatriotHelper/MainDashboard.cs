@@ -259,16 +259,8 @@ namespace CyberPatriotHelper
 
         private void BtnFileSweep_Click(object? sender, EventArgs e)
         {
-            MessageBox.Show(
-                "File Sweep will scan all user profiles for suspicious files.\n\n" +
-                "This feature scans for:\n" +
-                "- Media files in user directories\n" +
-                "- Unauthorized software\n" +
-                "- Suspicious executables\n\n" +
-                "Implementation: Use Windows Search or PowerShell to scan C:\\Users\\ for file types specified in competition rules.",
-                "File Sweep",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information);
+            var fileSystemTools = new FileSystemToolsWindow();
+            fileSystemTools.Show();
         }
     }
 }
