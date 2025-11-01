@@ -561,13 +561,29 @@ namespace CyberPatriotHelper.UI
                 return;
             }
 
-            var directories = Directory.GetDirectories(usersPath);
-            var realUsers = directories
-                .Where(d => !Path.GetFileName(d).Equals("Public", StringComparison.OrdinalIgnoreCase) &&
-                            !Path.GetFileName(d).Equals("Default", StringComparison.OrdinalIgnoreCase) &&
-                            !Path.GetFileName(d).Equals("Default User", StringComparison.OrdinalIgnoreCase) &&
-                            !Path.GetFileName(d).StartsWith("Default.", StringComparison.OrdinalIgnoreCase))
-                .ToList();
+            List<string> realUsers;
+            try
+            {
+                var directories = Directory.GetDirectories(usersPath);
+                realUsers = directories
+                    .Where(d => !Path.GetFileName(d).Equals("Public", StringComparison.OrdinalIgnoreCase) &&
+                                !Path.GetFileName(d).Equals("Default", StringComparison.OrdinalIgnoreCase) &&
+                                !Path.GetFileName(d).Equals("Default User", StringComparison.OrdinalIgnoreCase) &&
+                                !Path.GetFileName(d).StartsWith("Default.", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
+            catch (UnauthorizedAccessException)
+            {
+                _lblUserExplorerStatus.Text = "⚠️ Access denied to C:\\Users directory. Run as Administrator.";
+                _lblUserExplorerStatus.ForeColor = Color.Red;
+                return;
+            }
+            catch (Exception ex)
+            {
+                _lblUserExplorerStatus.Text = $"⚠️ Error accessing C:\\Users: {ex.Message}";
+                _lblUserExplorerStatus.ForeColor = Color.Red;
+                return;
+            }
 
             string[] defaultFolders = {
                 "Desktop",
@@ -626,9 +642,17 @@ namespace CyberPatriotHelper.UI
                 else
                 {
                     // Check if user folders exist but we can't access them
-                    bool hasFolders = defaultFolders.Any(f => Directory.Exists(Path.Combine(userDir, f)));
-                    if (hasFolders)
+                    try
                     {
+                        bool hasFolders = defaultFolders.Any(f => Directory.Exists(Path.Combine(userDir, f)));
+                        if (hasFolders)
+                        {
+                            inaccessibleUsers.Add(userName);
+                        }
+                    }
+                    catch
+                    {
+                        // If we can't even check, consider it inaccessible
                         inaccessibleUsers.Add(userName);
                     }
                 }
