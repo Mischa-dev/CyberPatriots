@@ -39,12 +39,15 @@ namespace CyberPatriotHelper.UI
         private ListView _lvSearchResults = null!;
         private ProgressBar _progressBar = null!;
         private Label _lblSearchStatus = null!;
+        private Label _lblElapsedTime = null!;
 
         private CancellationTokenSource? _searchCancellation;
         private readonly List<FileSearchResult> _searchResults = new List<FileSearchResult>();
         private readonly List<FileSearchResult> _pendingUIUpdates = new List<FileSearchResult>();
         private readonly object _searchResultsLock = new object();
         private System.Windows.Forms.Timer _uiUpdateTimer = null!;
+        private DateTime _searchStartTime;
+        private System.Windows.Forms.Timer _elapsedTimeTimer = null!;
 
         public FileSystemToolsWindow()
         {
@@ -61,6 +64,12 @@ namespace CyberPatriotHelper.UI
                 Interval = 200 // Update UI every 200ms
             };
             _uiUpdateTimer.Tick += (s, e) => ProcessPendingUIUpdates();
+
+            _elapsedTimeTimer = new System.Windows.Forms.Timer
+            {
+                Interval = 1000 // Update elapsed time every second
+            };
+            _elapsedTimeTimer.Tick += (s, e) => UpdateElapsedTime();
         }
 
         private void ProcessPendingUIUpdates()
@@ -91,7 +100,18 @@ namespace CyberPatriotHelper.UI
                 _lvSearchResults.Items.Add(item);
             }
 
-            _lblSearchStatus.Text = $"Searching... Found {totalCount} file(s) so far...";
+            // Update status with more prominent formatting
+            _lblSearchStatus.Text = $"🔍 SEARCHING... Found {totalCount} file(s) so far";
+            _lblSearchStatus.Font = new Font(_lblSearchStatus.Font.FontFamily, 10, FontStyle.Bold);
+        }
+
+        private void UpdateElapsedTime()
+        {
+            if (_searchCancellation != null && !_searchCancellation.Token.IsCancellationRequested)
+            {
+                TimeSpan elapsed = DateTime.Now - _searchStartTime;
+                _lblElapsedTime.Text = $"Elapsed: {elapsed.Hours:D2}:{elapsed.Minutes:D2}:{elapsed.Seconds:D2}";
+            }
         }
 
         private void CheckElevation()
@@ -330,7 +350,7 @@ namespace CyberPatriotHelper.UI
             _lvSearchResults = new ListView
             {
                 Location = new Point(10, 155),
-                Size = new Size(1020, 300),
+                Size = new Size(1020, 270),
                 View = View.Details,
                 FullRowSelect = true,
                 GridLines = true,
@@ -345,11 +365,24 @@ namespace CyberPatriotHelper.UI
             _lvSearchResults.DoubleClick += LvSearchResults_DoubleClick;
             _tabPatternSearch.Controls.Add(_lvSearchResults);
 
+            // Elapsed time label (new)
+            _lblElapsedTime = new Label
+            {
+                Location = new Point(10, 430),
+                Size = new Size(200, 25),
+                TextAlign = ContentAlignment.MiddleLeft,
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                ForeColor = Color.DarkBlue,
+                Text = "Elapsed: 00:00:00",
+                Anchor = AnchorStyles.Bottom | AnchorStyles.Left
+            };
+            _tabPatternSearch.Controls.Add(_lblElapsedTime);
+
             // Progress bar
             _progressBar = new ProgressBar
             {
-                Location = new Point(10, 465),
-                Size = new Size(1020, 20),
+                Location = new Point(10, 460),
+                Size = new Size(1020, 25),
                 Style = ProgressBarStyle.Continuous,
                 Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
             };
@@ -359,10 +392,12 @@ namespace CyberPatriotHelper.UI
             _lblSearchStatus = new Label
             {
                 Location = new Point(10, 490),
-                Size = new Size(1020, 25),
+                Size = new Size(1020, 30),
                 TextAlign = ContentAlignment.MiddleLeft,
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 ForeColor = Color.DarkBlue,
-                Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
+                Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
+                Text = "Click 'Start Search' to begin scanning for files..."
             };
             _tabPatternSearch.Controls.Add(_lblSearchStatus);
 
@@ -371,7 +406,11 @@ namespace CyberPatriotHelper.UI
             {
                 Location = new Point(10, 525),
                 Size = new Size(120, 35),
-                Text = "Start Search",
+                Text = "▶ Start Search",
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                BackColor = Color.LightGreen,
+                ForeColor = Color.DarkGreen,
+                FlatStyle = FlatStyle.Flat,
                 Anchor = AnchorStyles.Bottom | AnchorStyles.Left
             };
             _btnStartSearch.Click += BtnStartSearch_Click;
@@ -381,7 +420,11 @@ namespace CyberPatriotHelper.UI
             {
                 Location = new Point(140, 525),
                 Size = new Size(120, 35),
-                Text = "Cancel",
+                Text = "⏹ Cancel",
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                BackColor = Color.LightCoral,
+                ForeColor = Color.DarkRed,
+                FlatStyle = FlatStyle.Flat,
                 Enabled = false,
                 Anchor = AnchorStyles.Bottom | AnchorStyles.Left
             };
@@ -850,11 +893,16 @@ namespace CyberPatriotHelper.UI
             _btnCancelSearch.Enabled = true;
             _btnExportResults.Enabled = false;
             _progressBar.Style = ProgressBarStyle.Marquee;
-            _lblSearchStatus.Text = "Searching...";
+            _searchStartTime = DateTime.Now;
+            _lblElapsedTime.Text = "Elapsed: 00:00:00";
+            _lblElapsedTime.Visible = true;
+            _lblSearchStatus.Text = "🔍 SEARCHING... Initializing scan...";
+            _lblSearchStatus.Font = new Font(_lblSearchStatus.Font.FontFamily, 10, FontStyle.Bold);
             _lblSearchStatus.ForeColor = Color.Blue;
 
             _searchCancellation = new CancellationTokenSource();
             _uiUpdateTimer.Start(); // Start the batched UI update timer
+            _elapsedTimeTimer.Start(); // Start the elapsed time timer
 
             try
             {
@@ -872,22 +920,26 @@ namespace CyberPatriotHelper.UI
                 if (!_searchCancellation.Token.IsCancellationRequested)
                 {
                     _lblSearchStatus.Text = $"✓ Search complete. Found {finalCount} file(s).";
+                    _lblSearchStatus.Font = new Font(_lblSearchStatus.Font.FontFamily, 10, FontStyle.Bold);
                     _lblSearchStatus.ForeColor = Color.Green;
                 }
             }
             catch (OperationCanceledException)
             {
-                _lblSearchStatus.Text = "Search cancelled by user.";
+                _lblSearchStatus.Text = "⚠ Search cancelled by user.";
+                _lblSearchStatus.Font = new Font(_lblSearchStatus.Font.FontFamily, 10, FontStyle.Bold);
                 _lblSearchStatus.ForeColor = Color.Orange;
             }
             catch (Exception ex)
             {
-                _lblSearchStatus.Text = $"Error during search: {ex.Message}";
+                _lblSearchStatus.Text = $"❌ Error during search: {ex.Message}";
+                _lblSearchStatus.Font = new Font(_lblSearchStatus.Font.FontFamily, 10, FontStyle.Bold);
                 _lblSearchStatus.ForeColor = Color.Red;
             }
             finally
             {
                 _uiUpdateTimer.Stop(); // Stop the timer
+                _elapsedTimeTimer.Stop(); // Stop the elapsed time timer
                 _btnStartSearch.Enabled = true;
                 _btnCancelSearch.Enabled = false;
 
@@ -1009,7 +1061,8 @@ namespace CyberPatriotHelper.UI
         private void BtnCancelSearch_Click(object? sender, EventArgs e)
         {
             _searchCancellation?.Cancel();
-            _lblSearchStatus.Text = "Cancelling search...";
+            _lblSearchStatus.Text = "⏳ Cancelling search...";
+            _lblSearchStatus.Font = new Font(_lblSearchStatus.Font.FontFamily, 10, FontStyle.Bold);
             _lblSearchStatus.ForeColor = Color.Orange;
         }
 
