@@ -48,9 +48,11 @@ namespace CyberPatriotHelper.UI
         private System.Windows.Forms.Timer _uiUpdateTimer = null!;
         private DateTime _searchStartTime;
         private System.Windows.Forms.Timer _elapsedTimeTimer = null!;
+        private Font _boldStatusFont = null!;
 
         public FileSystemToolsWindow()
         {
+            _boldStatusFont = new Font("Segoe UI", 10, FontStyle.Bold);
             InitializeComponents();
             CheckElevation();
             LoadUsers();
@@ -102,7 +104,7 @@ namespace CyberPatriotHelper.UI
 
             // Update status with more prominent formatting
             _lblSearchStatus.Text = $"🔍 SEARCHING... Found {totalCount} file(s) so far";
-            _lblSearchStatus.Font = new Font(_lblSearchStatus.Font.FontFamily, 10, FontStyle.Bold);
+            _lblSearchStatus.Font = _boldStatusFont;
         }
 
         private void UpdateElapsedTime()
@@ -897,7 +899,7 @@ namespace CyberPatriotHelper.UI
             _lblElapsedTime.Text = "Elapsed: 00:00:00";
             _lblElapsedTime.Visible = true;
             _lblSearchStatus.Text = "🔍 SEARCHING... Initializing scan...";
-            _lblSearchStatus.Font = new Font(_lblSearchStatus.Font.FontFamily, 10, FontStyle.Bold);
+            _lblSearchStatus.Font = _boldStatusFont;
             _lblSearchStatus.ForeColor = Color.Blue;
 
             _searchCancellation = new CancellationTokenSource();
@@ -920,20 +922,20 @@ namespace CyberPatriotHelper.UI
                 if (!_searchCancellation.Token.IsCancellationRequested)
                 {
                     _lblSearchStatus.Text = $"✓ Search complete. Found {finalCount} file(s).";
-                    _lblSearchStatus.Font = new Font(_lblSearchStatus.Font.FontFamily, 10, FontStyle.Bold);
+                    _lblSearchStatus.Font = _boldStatusFont;
                     _lblSearchStatus.ForeColor = Color.Green;
                 }
             }
             catch (OperationCanceledException)
             {
                 _lblSearchStatus.Text = "⚠ Search cancelled by user.";
-                _lblSearchStatus.Font = new Font(_lblSearchStatus.Font.FontFamily, 10, FontStyle.Bold);
+                _lblSearchStatus.Font = _boldStatusFont;
                 _lblSearchStatus.ForeColor = Color.Orange;
             }
             catch (Exception ex)
             {
                 _lblSearchStatus.Text = $"❌ Error during search: {ex.Message}";
-                _lblSearchStatus.Font = new Font(_lblSearchStatus.Font.FontFamily, 10, FontStyle.Bold);
+                _lblSearchStatus.Font = _boldStatusFont;
                 _lblSearchStatus.ForeColor = Color.Red;
             }
             finally
@@ -1062,7 +1064,7 @@ namespace CyberPatriotHelper.UI
         {
             _searchCancellation?.Cancel();
             _lblSearchStatus.Text = "⏳ Cancelling search...";
-            _lblSearchStatus.Font = new Font(_lblSearchStatus.Font.FontFamily, 10, FontStyle.Bold);
+            _lblSearchStatus.Font = _boldStatusFont;
             _lblSearchStatus.ForeColor = Color.Orange;
         }
 
@@ -1186,6 +1188,18 @@ namespace CyberPatriotHelper.UI
                     MessageBox.Show($"Failed to export results: {ex.Message}", "Export Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _boldStatusFont?.Dispose();
+                _uiUpdateTimer?.Dispose();
+                _elapsedTimeTimer?.Dispose();
+                _searchCancellation?.Dispose();
+            }
+            base.Dispose(disposing);
         }
 
         private class FileSearchResult
