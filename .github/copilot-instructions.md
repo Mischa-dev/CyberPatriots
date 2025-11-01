@@ -27,15 +27,16 @@ The application is built around a repeatable pattern using the `SecurityCheck` a
 ```csharp
 public abstract class SecurityCheck
 {
-    public string Name { get; set; }
-    public string Description { get; set; }
-    public string WhyItMatters { get; set; }
+    public string Name { get; protected set; }
+    public string Description { get; protected set; }
+    public string WhyItMatters { get; protected set; }
     public CheckStatus Status { get; protected set; }
     public string Evidence { get; protected set; }
-    public string ManualSteps { get; set; }
+    public string ManualSteps { get; protected set; }
     
     public abstract void Check();
-    public abstract void Fix();
+    public abstract bool Fix();
+    public virtual bool Verify();
 }
 ```
 
@@ -174,10 +175,12 @@ When working with Windows security:
            // Set Evidence with diagnostic output
        }
 
-       public override void Fix()
+       public override bool Fix()
        {
            // Fix the issue with UAC elevation
-           // Re-run Check() to verify
+           // Return true if successful, false otherwise
+           // Check() is automatically called by Verify()
+           return true;
        }
    }
    ```
