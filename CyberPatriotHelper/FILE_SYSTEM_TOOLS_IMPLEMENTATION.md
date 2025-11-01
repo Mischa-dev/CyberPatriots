@@ -29,7 +29,6 @@ A comprehensive search tool for finding questionable files:
 - Filters:
   - Custom extension list (comma-separated)
   - Minimum file size (MB)
-  - Modified since date
 - Search scope:
   - Default: User-writable locations (C:\Users, Temp)
   - Optional: System locations (Windows, Program Files) with warning dialog

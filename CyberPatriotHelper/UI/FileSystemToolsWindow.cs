@@ -32,7 +32,6 @@ namespace CyberPatriotHelper.UI
         // Pattern Search controls
         private TextBox _txtExtensions = null!;
         private TextBox _txtMinSize = null!;
-        private DateTimePicker _dtpModifiedSince = null!;
         private CheckBox _chkIncludeSystem = null!;
         private Button _btnStartSearch = null!;
         private Button _btnCancelSearch = null!;
@@ -315,27 +314,6 @@ namespace CyberPatriotHelper.UI
                 Text = "0"
             };
             _tabPatternSearch.Controls.Add(_txtMinSize);
-
-            // Modified since filter
-            Label lblModified = new Label
-            {
-                Location = new Point(220, 85),
-                Size = new Size(100, 25),
-                Text = "Modified Since:",
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-            _tabPatternSearch.Controls.Add(lblModified);
-
-            _dtpModifiedSince = new DateTimePicker
-            {
-                Location = new Point(325, 85),
-                Size = new Size(200, 25),
-                Format = DateTimePickerFormat.Short,
-                Value = DateTime.Now.AddMonths(-6),
-                ShowCheckBox = true,
-                Checked = false
-            };
-            _tabPatternSearch.Controls.Add(_dtpModifiedSince);
 
             // Include system locations checkbox
             _chkIncludeSystem = new CheckBox
@@ -791,7 +769,6 @@ namespace CyberPatriotHelper.UI
         private void PerformSearch(HashSet<string> extensions, decimal minSizeMB, CancellationToken cancellationToken)
         {
             long minSizeBytes = (long)(minSizeMB * 1024 * 1024);
-            DateTime? modifiedSince = _dtpModifiedSince.Checked ? _dtpModifiedSince.Value : null;
 
             // Define search locations
             List<string> searchPaths = new List<string>();
@@ -825,11 +802,11 @@ namespace CyberPatriotHelper.UI
 
             foreach (var basePath in searchPaths)
             {
-                SearchDirectory(basePath, extensions, minSizeBytes, modifiedSince, cancellationToken, ref foundCount);
+                SearchDirectory(basePath, extensions, minSizeBytes, cancellationToken, ref foundCount);
             }
         }
 
-        private void SearchDirectory(string path, HashSet<string> extensions, long minSizeBytes, DateTime? modifiedSince, CancellationToken cancellationToken, ref int foundCount)
+        private void SearchDirectory(string path, HashSet<string> extensions, long minSizeBytes, CancellationToken cancellationToken, ref int foundCount)
         {
             if (cancellationToken.IsCancellationRequested)
                 return;
@@ -850,8 +827,7 @@ namespace CyberPatriotHelper.UI
 
                         // Check if matches criteria
                         if (extensions.Contains(ext) &&
-                            fileInfo.Length >= minSizeBytes &&
-                            (!modifiedSince.HasValue || fileInfo.LastWriteTime >= modifiedSince.Value))
+                            fileInfo.Length >= minSizeBytes)
                         {
                             var result = new FileSearchResult
                             {
@@ -884,7 +860,7 @@ namespace CyberPatriotHelper.UI
                     if (cancellationToken.IsCancellationRequested)
                         return;
 
-                    SearchDirectory(dir, extensions, minSizeBytes, modifiedSince, cancellationToken, ref foundCount);
+                    SearchDirectory(dir, extensions, minSizeBytes, cancellationToken, ref foundCount);
                 }
             }
             catch
