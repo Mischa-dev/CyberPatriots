@@ -48,7 +48,7 @@ Search the entire system for specific file types that might be prohibited in Cyb
 - **Extensions**: `.mp3,.mp4,.avi,.mkv,.mov,.wmv,.flv,.exe,.msi,.iso,.dmg,.zip,.rar,.7z`
 - **Scope**: User-writable locations only (C:\Users\, Temp)
 - **Min Size**: 0 MB (all files)
-- **Modified Since**: Disabled (all dates)
+- **All Dates**: Searches all files regardless of modification date
 
 ### How to Use
 1. Click "File Sweep" button on the main dashboard
@@ -56,7 +56,6 @@ Search the entire system for specific file types that might be prohibited in Cyb
 3. Customize filters as needed:
    - **Extensions**: Comma-separated list (e.g., `.mp3,.exe,.zip`)
    - **Min Size**: Minimum file size in MB (useful for ignoring small files)
-   - **Modified Since**: Only show files modified after a specific date
    - **Include System Locations**: ⚠️ Check to search Windows, Program Files (slower, may return many legitimate files)
 4. Click "Start Search"
 5. Results stream in real-time as they're found
@@ -95,7 +94,7 @@ Search the entire system for specific file types that might be prohibited in Cyb
 - Look for Hidden/System attributes on suspicious files in Documents
 
 ### Pattern Search
-- Use the "Modified Since" filter to focus on recent files
+- Use the Min Size filter to focus on larger files
 - Start with default scope first, only enable system locations if needed
 - Export results to CSV for reporting or documentation
 - Mark files as "Reviewed" to track your progress
@@ -152,7 +151,6 @@ Search the entire system for specific file types that might be prohibited in Cyb
 - Verify your extension filters are correct (include the dot, e.g., `.mp3`)
 - Check that files matching your criteria exist
 - Try reducing the minimum size filter
-- Disable the "Modified Since" filter
 
 ### Search is slow
 - Reduce the number of extensions
